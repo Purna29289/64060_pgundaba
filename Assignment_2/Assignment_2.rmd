@@ -1,0 +1,153 @@
+---
+title: "Assignment_2"
+author: "Purna Sai Kiran"
+date: "February 20, 2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+```{r, message= FALSE, Warning=FALSE}
+#Loading Customer data of Universal Bank into R
+setwd("E:\\Kent\\Fundamentals of Machine Learning - Prof Murali Shanker\\Assignment_2")
+Cust_info <- read.csv("UniversalBank.csv")
+Cust_info
+```
+
+```{r, message= FALSE, Warning=FALSE}
+#geting structure of the data 
+str(Cust_info)
+```
+
+```{r,message=FALSE, warning=FALSE}
+#Education and Personal Loan are important for the model
+#As both variables are categorical, we are converting them into factor. 
+library(dplyr)
+Cust_info <- Cust_info %>% mutate(Education = as.factor(Education), Personal.Loan = as.factor(Personal.Loan))
+str(Cust_info)
+```
+
+```{r, message=FALSE, warning=FALSE}
+#Plotting relationship of the target variable
+library(ggplot2)
+ggplot(Cust_info, aes(x=Personal.Loan, y=Income)) + geom_boxplot()
+```
+```{r, message= FALSE, Warning=FALSE}
+ggplot(Cust_info, aes(x=Income, y=Mortgage)) + geom_point()
+```
+```{r,message= FALSE, Warning=FALSE}
+ggplot(Cust_info, aes(x=Personal.Loan, y=Mortgage)) + geom_col()
+```
+By above graphs, it looks evident that people with low mortage and high income have fair chances of taking a loan.
+
+```{r, message= FALSE, Warning=FALSE}
+#Converting categorical variables into dummies - Education
+library(dummies)
+Edu.dum <- dummy(Cust_info$Education, sep = "_")
+Cust_info <- cbind(Cust_info,Edu.dum) #Combinding the dummy variables to the main dataset
+Cust_info
+```
+```{r, message= FALSE, Warning=FALSE}
+#Explicitly removing Education Column
+library(dplyr)
+Cust_info = subset(Cust_info,select = -c(Education))
+Cust_info
+```
+```{r, message= FALSE, Warning=FALSE}
+#Splitting data into Test Data and Validation data
+library(caret)
+TRIndex <- createDataPartition(Cust_info$Age,p = 0.6, list = FALSE) #List cannot be imposed on data frame.
+Custinfo_TrDF <- Cust_info[TRIndex,]
+Custinfo_TrDF #Count of Train set
+Custinfo_ValDF <- Cust_info[-TRIndex,]
+Custinfo_ValDF #Count of Validation set
+```
+```{r, message= FALSE, Warning=FALSE}
+#Normalization Process 
+#Eliminating ID and ZIP and considered only numeric variables from Train and Validation sets
+Custinfo_TrPP <- Custinfo_TrDF %>% select(-c("ID","ZIP.Code")) %>% select_if(is.numeric) 
+Custinfo_ValPP <- Custinfo_ValDF %>% select(-c("ID","ZIP.Code")) %>% select_if(is.numeric)
+
+```
+
+```{r, message= FALSE, Warning=FALSE}
+#Preprocess Modeling
+norm_model <- preProcess(Custinfo_TrPP,method = c("center","scale"))
+train_norm <- predict(norm_model, Custinfo_TrPP)
+Val_norm <- predict(norm_model, Custinfo_ValPP)
+```
+```{r, message= FALSE, Warning=FALSE}
+#kNN implementation
+library(class)
+Ques1 <- data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 =
+1, Education_3 = 0, Mortgage = 0, Securities.Account = 0, CD.Account = 0, Online = 1,Credit.Card= 1) #Given data for which we need to predict personalloan acceptance or rejection with k=1
+knn_M1 <- knn(train_norm,Ques1,cl = Custinfo_TrDF$Personal.Loan,k=1,prob = TRUE )
+knn_M1
+```
+For K=1, the given details of the person will return "Yes = 1" as the prediction for accepting a personal loan. Hence, customer will be classified as the one who accepts personal loan from Universal Bank.
+
+```{r, message= FALSE, Warning=FALSE}
+library(caret)
+CAccuracy <- data.frame(k = seq(1,20,1), CAccuracy = rep(0,20))
+for(i in 1:20){
+  Ques2 <- knn(train_norm,Val_norm,cl = Custinfo_TrDF$Personal.Loan,k=i,prob=TRUE)
+  CAccuracy[i,2] <- confusionMatrix(Ques2, Custinfo_ValDF$Personal.Loan)$overall[1] #This is for accuracy in confusion matrix. 
+}
+CAccuracy
+```
+K = 3 is the best choice as it gives 96.35% accuracy for the validation set.
+
+```{r, message= FALSE, Warning=FALSE}
+Ques3 <- knn(train_norm,Val_norm, cl = Custinfo_TrDF$Personal.Loan,k=3,prob=TRUE )
+confusionMatrix(Ques3,Custinfo_ValDF$Personal.Loan)
+library(gmodels)
+CrossTable(Ques3, Custinfo_ValDF$Personal.Loan)
+```
+Accuracy for k=3 is 96.35%, Sensitivity is 99.34%, specficity is 65.73%,Precision is 96.74%,
+
+```{r, message= FALSE, Warning=FALSE}
+Ques4 <- knn(train_norm,Ques1,cl = Custinfo_TrDF$Personal.Loan,k=3,prob = TRUE )
+Ques4
+
+```
+
+At the best k value of 3, it is predicting the Personal Loan acceptance with 100% probability
+
+```{r, message= FALSE, Warning=FALSE}
+#Splitting data into Train, Validation and Test - 50%, 30% and 20%
+library(caret)
+TRIndex <- createDataPartition(Cust_info$Age,p = 0.5, list = FALSE) 
+TrainDF <- Cust_info[TRIndex,]
+NROW(TrainDF) #Count of Train set
+Test_VAL_DF <- Cust_info[-TRIndex,]
+NROW(Test_VAL_DF) #Count of Validation set
+
+TestIndex <- createDataPartition(Test_VAL_DF$ID,p = 0.6, list = FALSE)
+TestDF <- Test_VAL_DF[TestIndex,]
+NROW(TestDF)
+ValDF <- Test_VAL_DF[-TestIndex,]
+NROW(ValDF) #Count of validation set
+```
+```{r, message= FALSE, Warning=FALSE}
+#Normalization Process for datasets 
+#Eliminating ID and ZIP and considered only numeric variables from Train and Validation sets
+train_normD <- TrainDF %>% select(-c("ID","ZIP.Code")) %>% select_if(is.numeric) 
+Val_normD <- ValDF %>% select(-c("ID","ZIP.Code")) %>% select_if(is.numeric)
+Test_normD <- TestDF %>% select(-c("ID","ZIP.Code")) %>%  select_if(is.numeric)
+
+```
+```{r, message= FALSE, Warning=FALSE}
+#Normalizing datasets
+norm_model <- preProcess(train_normD,method = c("center","scale"))
+train_norm <- predict(norm_model, train_normD)
+Val_norm <- predict(norm_model, Val_normD)  
+test_norm <- predict(norm_model,Test_normD)
+```
+```{r, message= FALSE, Warning=FALSE}
+Ques5 <- knn(train_norm,Val_norm,cl = TrainDF$Personal.Loan,k=3,prob = TRUE )
+Ques5[1:10]
+confusionMatrix(ValDF$Personal.Loan,Ques5)
+CrossTable(Ques5, ValDF$Personal.Loan)
+```
+Accuracy for the model is 95.55% and accuracy for the previous model is 96.35.
+Hence when more train data is available, the model may predict better.

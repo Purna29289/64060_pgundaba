@@ -1,0 +1,124 @@
+---
+title: "Assignment_3"
+author: "Purna Sai Kiran"
+date: "March 7, 2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+Loading the required Universal Bank Data to work on the Personal Loan Probability Using Naive Bayes Model and studying the structure of the data
+```{r}
+setwd("E:\\Kent\\Fundamentals of Machine Learning - Prof Murali Shanker\\Assignment_3")
+cust_data <- read.csv("UniversalBank.csv")
+```
+
+Converting the integer variables into factors since Naive Bayes need categorical variables for computing probability.
+
+
+```{r}
+cust_data$CreditCard <- as.factor(cust_data$CreditCard)
+cust_data$Online <- as.factor(cust_data$Online)
+cust_data$Personal.Loan <- as.factor(cust_data$Personal.Loan)
+```
+
+We are using Caret Library. Data partition is done with 60:40 ratio for Train and Test data respectively. We have also calculated the rows to verify the partition is as per the specified ratio
+
+```{r, message=FALSE}
+library(caret)
+set.seed(1000)
+Train_Index <- createDataPartition(cust_data$ID, p = 0.6, list = FALSE)
+Train_df <- cust_data[Train_Index,]
+nrow(Train_df)
+Valid_df <- cust_data[-Train_Index,]
+nrow(Valid_df)
+```
+
+Q1 : Create a pivot table for the training data with Online as a column variable, CC as a row variable, and Loan as a secondary row variable. The values inside the table should convey the count.
+
+```{r}
+Pivot <- table(Train_df$Personal.Loan,Train_df$CreditCard)
+Pivot
+pivot_df <- as.data.frame(Pivot)
+colnames(pivot_df) <- c("PersonalLoan", "CreditCard","Online")
+pivot_df
+
+```
+A : Here we created a pivot using table function.We have also named the columns for easy reference. The pivoting is done on Train data alone. The Probability
+
+
+Q2 : Consider the task of classifying a customer who owns a bank credit card and is actively using online banking services. Looking at the pivot table, what is the probability that this customer will accept the loan offer? 
+```{r}
+Prob_POCC <- 83/(790+83)*100 #From the table the probability for a person accepting a loan and having a credit card issued and taken online services
+Prob_POCC
+
+```
+A : From the available table we have identified that the probability of a customer accepting a loan when the customer has a credit card and online facility is 9.51%
+
+Q3 : Create two separate pivot tables for the training data. One will have Loan (rows) as a function of Online (columns) and the other will have Loan (rows) as a function of CC.
+```{r}
+Pivot_PO <- table(Personal.Loan=Train_df$Personal.Loan, Online = Train_df$Online)
+Pivot_PO
+
+Pivot_PCC <- table(Personal.Loan = Train_df$Personal.Loan, CreditCard = Train_df$CreditCard)
+Pivot_PCC
+
+```
+
+We have used the table() function to create separate pivot tables with Loan as row function for both Online and CreditCard variables in columns. 
+
+Q4 : D. Compute the following quantities [P(A | B):
+i. P(CC = 1 | Loan = 1) 
+ii. P(Online = 1 | Loan = 1)
+iii. P(Loan = 1) (the proportion of loan acceptors)
+iv. P(CC = 1 | Loan = 0)
+v. P(Online = 1 | Loan = 0)
+vi. P(Loan = 0)
+```{r}
+#Probabilities
+A <- 83/(83+196) #P(CreditCard = 1| Loan = 1)
+A
+
+
+B <- 165/(165+114) #P(Online = 1| Loan = 1)
+B
+
+
+C <- (279)/3000 #P(Loan = 1) 
+C
+
+
+D <- 790/(1931+790)#P(CC = 1 | Loan = 0) 
+D
+
+
+E <- 1644/(1644+1077) #P(Online = 1 | Loan = 0)
+E
+
+F <- 2721/3000 #P(Loan = 0) 
+F
+
+```
+
+Q5 : Use the quantities computed above to compute the naive Bayes probability P(Loan = 1 | CC = 1,Online = 1).
+```{r}
+CalNaiBay <- (A*B*C/((A*B*C)+(D*E*F)))
+CalNaiBay
+```
+
+
+Q6 : The probabiity in question B is 9.51% and the probability in question E is 9.3%. These are almost same.Naive Bayes assumes conditional independence between variables which makes the model less accurate. Hence 9.5% is more accurate estimate.
+
+Q7 : Which of the entries in this table are needed for computing P(Loan = 1 | CC = 1, Online = 1)? Run naive Bayes on the data. Examine the model output on training data, and find the entry that corresponds to P(Loan = 1 | CC = 1, Online = 1). Compare this to the number you obtained in (E).
+```{r, message= FALSE}
+library(e1071)
+NaiBay <- naiveBayes(Personal.Loan~.,data = Train_df)
+NaiBay
+
+```
+A : Creditcard, Online and Personal Loan with the corresponding 0 and 1 values are required to compute P(Loan=1|CC=1,Online=1).The Naive Bayes model returned the conditional probabilities. The value corresponding to P(Loan = 1| CC = 1, Online = 1) is 0.093. The value we got in E is 0.093 as well. We have succefully implemented Naive Bayes on the data.
+
+
+
+
